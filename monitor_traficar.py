@@ -1,16 +1,53 @@
 import requests
 import csv
 import os
+import json
 from datetime import datetime
 from pathlib import Path
 
-BASE_URL = "https://fioletowe.live/api/v1/cars"
+BASE_URL = "https://fioletowe.live/api/v1"
 DATA_FILE = "data/consumption.csv"
 STATE_FILE = "data/last_state.csv"
+MODELS_CACHE = "data/car_models.json"
+
+def get_car_models():
+    """Fetch and cache car model data"""
+    # Try to load from cache first
+    if os.path.exists(MODELS_CACHE):
+        with open(MODELS_CACHE, 'r') as f:
+            return json.load(f)
+    
+    # Fetch from API
+    print("Fetching car models from API...")
+    models = {}
+    
+    # Get both modelType 1 and 2
+    for model_type in [1, 2]:
+        response = requests.get(f"{BASE_URL}/car-models", params={
+            "modelType": model_type,
+            "electric": False
+        })
+        
+        if response.status_code == 200:
+            car_models = response.json()['carmodels']
+            for model in car_models:
+                models[model['id']] = {
+                    'name': model['name'],
+                    'type': model['type'],
+                    'maxFuel': model['maxFuel']
+                }
+    
+    # Cache the models
+    Path("data").mkdir(exist_ok=True)
+    with open(MODELS_CACHE, 'w') as f:
+        json.dump(models, f, indent=2)
+    
+    print(f"Cached {len(models)} car models")
+    return models
 
 def get_cars():
     """Fetch current car data"""
-    response = requests.get(BASE_URL, params={"zoneId": 1})
+    response = requests.get(f"{BASE_URL}/cars", params={"zoneId": 1})
     return response.json()['cars']
 
 def load_previous_state():
@@ -23,57 +60,111 @@ def load_previous_state():
         reader = csv.DictReader(f)
         for row in reader:
             state[int(row['id'])] = {
-                'fuel': float(row['fuel']),
-                'available': row['available'] == 'True'
+                'fuel_percent': float(row['fuel_percent']),
+                'fuel_liters': float(row['fuel_liters']),
+                'available': row['available'] == 'True',
+                'model_id': int(row['model_id'])
             }
     return state
 
-def save_current_state(cars):
+def save_current_state(cars, models):
     """Save current reading for next comparison"""
     Path("data").mkdir(exist_ok=True)
     with open(STATE_FILE, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['id', 'fuel', 'available'])
+        writer.writerow(['id', 'fuel_percent', 'fuel_liters', 'available', 'model_id'])
         for car in cars:
-            writer.writerow([car['id'], car['fuel'], car['available']])
+            # Skip cars with unknown models or invalid types
+            if car['modelId'] not in models:
+                continue
+            if models[car['modelId']]['type'] not in [1, 2]:
+                continue
+                
+            max_fuel = models[car['modelId']]['maxFuel']
+            fuel_liters = (car['fuel'] / 100.0) * max_fuel
+            
+            writer.writerow([
+                car['id'],
+                car['fuel'],
+                f"{fuel_liters:.2f}",
+                car['available'],
+                car['modelId']
+            ])
 
-def calculate_consumption(previous_state, current_cars):
+def calculate_consumption(previous_state, current_cars, models):
     """Calculate fuel consumption since last reading"""
-    total_consumption = 0
-    consumption_events = 0
+    consumption_events = []
     
     for car in current_cars:
         car_id = car['id']
+        model_id = car['modelId']
+        
+        # Skip cars with unknown models or invalid types
+        if model_id not in models:
+            continue
+        if models[model_id]['type'] not in [1, 2]:
+            continue
         
         # Check if we have previous data for this car
         if car_id not in previous_state:
             continue
         
         prev = previous_state[car_id]
-        curr_fuel = car['fuel']
-        prev_fuel = prev['fuel']
         
-        # Car was available and fuel decreased = consumption event
-        if prev['available'] and curr_fuel < prev_fuel:
-            consumption = prev_fuel - curr_fuel
-            total_consumption += consumption
-            consumption_events += 1
+        # Calculate current fuel in liters
+        max_fuel = models[model_id]['maxFuel']
+        curr_fuel_liters = (car['fuel'] / 100.0) * max_fuel
+        prev_fuel_liters = prev['fuel_liters']
+        
+        # Only count consumption if:
+        # 1. Car was available in previous reading
+        # 2. Fuel decreased (not refueled)
+        if prev['available'] and curr_fuel_liters < prev_fuel_liters:
+            consumption = prev_fuel_liters - curr_fuel_liters
+            
+            # Only record significant consumption (> 0.1 liter to avoid rounding errors)
+            if consumption > 0.1:
+                consumption_events.append({
+                    'car_id': car_id,
+                    'consumption': consumption,
+                    'car_name': models[model_id]['name'],
+                    'model_type': models[model_id]['type'],
+                    'prev_fuel': prev_fuel_liters,
+                    'curr_fuel': curr_fuel_liters
+                })
     
-    return total_consumption, consumption_events
+    return consumption_events
 
-def append_consumption_log(timestamp, consumption, events):
-    """Append consumption to CSV"""
+def append_consumption_log(timestamp, consumption_events):
+    """Append consumption events to CSV"""
+    if not consumption_events:
+        return
+    
     Path("data").mkdir(exist_ok=True)
     file_exists = os.path.exists(DATA_FILE)
     
     with open(DATA_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(['timestamp', 'consumption_percentage', 'events_count'])
-        writer.writerow([timestamp, f"{consumption:.2f}", events])
+            writer.writerow(['timestamp', 'car_id', 'car_name', 'model_type', 
+                           'consumption_liters', 'prev_fuel_liters', 'curr_fuel_liters'])
+        
+        for event in consumption_events:
+            writer.writerow([
+                timestamp,
+                event['car_id'],
+                event['car_name'],
+                event['model_type'],
+                f"{event['consumption']:.2f}",
+                f"{event['prev_fuel']:.2f}",
+                f"{event['curr_fuel']:.2f}"
+            ])
 
 def main():
     print(f"[{datetime.now()}] Starting monitoring cycle...")
+    
+    # Get car models (cached after first run)
+    models = get_car_models()
     
     # Get current data
     current_cars = get_cars()
@@ -84,15 +175,35 @@ def main():
     
     # Calculate consumption (skip first run when no previous data)
     if previous_state:
-        consumption, events = calculate_consumption(previous_state, current_cars)
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        append_consumption_log(timestamp, consumption, events)
-        print(f"Consumption: {consumption:.2f}% across {events} events")
+        consumption_events = calculate_consumption(previous_state, current_cars, models)
+        
+        if consumption_events:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            append_consumption_log(timestamp, consumption_events)
+            
+            total_consumption = sum(e['consumption'] for e in consumption_events)
+            print(f"Recorded {len(consumption_events)} consumption events")
+            print(f"Total consumption: {total_consumption:.2f} liters")
+            
+            # Show breakdown by car model
+            model_consumption = {}
+            for event in consumption_events:
+                name = event['car_name']
+                if name not in model_consumption:
+                    model_consumption[name] = {'count': 0, 'liters': 0}
+                model_consumption[name]['count'] += 1
+                model_consumption[name]['liters'] += event['consumption']
+            
+            print("\nConsumption by model:")
+            for name, data in sorted(model_consumption.items()):
+                print(f"  {name}: {data['liters']:.2f}L ({data['count']} events)")
+        else:
+            print("No consumption events detected")
     else:
         print("First run - no previous data to compare")
     
     # Save current state for next run
-    save_current_state(current_cars)
+    save_current_state(current_cars, models)
     print("State saved successfully")
 
 if __name__ == "__main__":
