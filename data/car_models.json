@@ -1,0 +1,37 @@
+{
+  "2": {
+    "name": "RENAULT Clio IV",
+    "type": 1,
+    "maxFuel": 45
+  },
+  "17": {
+    "name": "RENAULT Clio V",
+    "type": 1,
+    "maxFuel": 42
+  },
+  "59": {
+    "name": "DACIA Sandero",
+    "type": 1,
+    "maxFuel": 50
+  },
+  "60": {
+    "name": "RENAULT Arkana",
+    "type": 1,
+    "maxFuel": 50
+  },
+  "15": {
+    "name": "RENAULT Master",
+    "type": 2,
+    "maxFuel": 80
+  },
+  "22": {
+    "name": "DACIA Dokker",
+    "type": 2,
+    "maxFuel": 50
+  },
+  "65": {
+    "name": "RENAULT Express",
+    "type": 2,
+    "maxFuel": 50
+  }
+}
