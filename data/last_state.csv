@@ -1,5 +1,5 @@
 id,fuel,available
-49859,16.0,True
+52406,70.0,True
 55346,41.0,True
 55563,9.0,True
 55564,72.0,True
@@ -10,8 +10,10 @@ id,fuel,available
 67774,28.0,True
 67776,23.0,True
 69955,23.0,True
+70205,40.0,True
 74065,41.0,True
 74066,41.0,True
+74096,37.0,True
 60542,96.0,True
 60547,43.0,True
 60548,64.0,True
@@ -21,9 +23,7 @@ id,fuel,available
 60592,39.0,True
 60617,73.0,True
 60620,50.0,True
-60623,57.0,True
 60636,91.0,True
-60638,87.0,True
 60644,89.0,True
 60648,29.0,True
 60654,29.0,True
@@ -45,6 +45,7 @@ id,fuel,available
 61000,64.0,True
 61439,87.0,True
 61446,39.0,True
+61467,45.0,True
 61475,52.0,True
 61479,48.0,True
 62305,66.0,True
@@ -61,8 +62,8 @@ id,fuel,available
 68477,36.0,True
 68478,64.0,True
 68497,41.0,True
-68507,82.0,True
 68508,66.0,True
+68538,52.0,True
 68542,57.0,True
 68555,32.0,True
 68560,71.0,True
@@ -88,6 +89,7 @@ id,fuel,available
 70874,45.0,True
 70882,36.0,True
 70906,32.0,True
+70916,66.0,True
 70922,34.0,True
 70931,87.0,True
 71142,39.0,True
@@ -127,7 +129,6 @@ id,fuel,available
 79216,50.0,True
 79245,57.0,True
 79260,73.0,True
-79283,59.0,True
 79311,100.0,True
 79332,52.0,True
 79344,44.0,True
@@ -136,6 +137,7 @@ id,fuel,available
 79417,73.0,True
 79424,94.0,True
 79431,80.0,True
+79448,85.0,True
 79450,98.0,True
 79462,62.0,True
 79486,46.0,True
@@ -171,6 +173,7 @@ id,fuel,available
 80009,68.0,True
 80144,48.0,True
 80170,76.0,True
+80185,46.0,True
 80233,78.0,True
 80236,91.0,True
 52787,20.0,True
@@ -201,11 +204,13 @@ id,fuel,available
 66799,72.0,True
 66817,37.0,True
 66824,50.0,True
+66829,72.0,True
 66830,54.0,True
 66846,50.0,True
 66847,42.0,True
 66848,71.0,True
 66851,87.0,True
+66864,35.0,True
 66865,91.0,True
 66876,78.0,True
 68638,65.0,True
@@ -213,6 +218,9 @@ id,fuel,available
 68650,93.0,True
 68654,82.0,True
 68678,46.0,True
+68694,72.0,True
+68708,95.0,True
+68721,28.0,True
 68726,22.0,True
 68735,50.0,True
 68742,44.0,True
@@ -229,7 +237,6 @@ id,fuel,available
 68874,57.0,True
 68879,52.0,True
 68896,89.0,True
-68930,87.0,True
 68948,69.0,True
 68965,95.0,True
 68973,89.0,True
@@ -243,7 +250,6 @@ id,fuel,available
 73562,52.0,True
 73578,35.0,True
 73612,24.0,True
-69154,42.0,True
 69182,33.0,True
 69740,33.0,True
 69745,90.0,True
@@ -282,14 +288,15 @@ id,fuel,available
 83512,48.0,True
 83518,55.0,True
 83580,86.0,True
+83634,55.0,True
 83645,93.0,True
+83657,41.0,True
 83671,96.0,True
 83703,25.0,True
 83740,45.0,True
 83767,53.0,True
 83790,96.0,True
 83841,55.0,True
-83874,66.0,True
 83886,82.0,True
 87750,90.0,True
 87780,50.0,True
@@ -597,6 +604,7 @@ id,fuel,available
 82364,96.0,True
 82365,77.0,True
 82366,47.0,True
+82368,85.0,True
 82369,57.0,True
 82373,46.0,True
 82378,29.0,True
