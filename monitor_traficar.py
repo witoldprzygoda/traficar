@@ -29,13 +29,33 @@ def get_car_models():
         })
         
         if response.status_code == 200:
-            car_models = response.json()['carmodels']
-            for model in car_models:
-                models[model['id']] = {
-                    'name': model['name'],
-                    'type': model['type'],
-                    'maxFuel': model['maxFuel']
-                }
+            try:
+                data = response.json()
+                
+                # Handle different possible response structures
+                if isinstance(data, dict):
+                    # Try 'carModels' (capital M)
+                    car_models = data.get('carModels', data.get('carmodels', data.get('models', [])))
+                elif isinstance(data, list):
+                    # Response is directly a list
+                    car_models = data
+                else:
+                    print(f"Unexpected response format for modelType {model_type}: {type(data)}")
+                    continue
+                
+                for model in car_models:
+                    models[model['id']] = {
+                        'name': model['name'],
+                        'type': model['type'],
+                        'maxFuel': model['maxFuel']
+                    }
+            except Exception as e:
+                print(f"Error parsing response for modelType {model_type}: {e}")
+        else:
+            print(f"Failed to fetch models for type {model_type}: HTTP {response.status_code}")
+    
+    if not models:
+        raise Exception("Failed to fetch any car models from API")
     
     # Cache the models
     Path("data").mkdir(exist_ok=True)
@@ -59,6 +79,11 @@ def load_previous_state():
     with open(STATE_FILE, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            # Check if this is old format (missing new columns)
+            if 'fuel_percent' not in row or 'fuel_liters' not in row or 'model_id' not in row:
+                print("Detected old state file format - will be regenerated")
+                return {}  # Return empty state to regenerate
+            
             state[int(row['id'])] = {
                 'fuel_percent': float(row['fuel_percent']),
                 'fuel_liters': float(row['fuel_liters']),
