@@ -44,7 +44,8 @@ def get_car_models():
                     continue
                 
                 for model in car_models:
-                    models[model['id']] = {
+                    # CRITICAL FIX: Store with integer key for proper lookup
+                    models[int(model['id'])] = {
                         'name': model['name'],
                         'type': model['type'],
                         'maxFuel': model['maxFuel']
