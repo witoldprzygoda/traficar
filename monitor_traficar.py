@@ -7,6 +7,7 @@ from pathlib import Path
 
 BASE_URL = "https://fioletowe.live/api/v1"
 DATA_FILE = "data/consumption.csv"
+ALL_READINGS_FILE = "data/all_readings.csv"
 STATE_FILE = "data/last_state.csv"
 MODELS_CACHE = "data/car_models.json"
 
@@ -15,7 +16,9 @@ def get_car_models():
     # Try to load from cache first
     if os.path.exists(MODELS_CACHE):
         with open(MODELS_CACHE, 'r') as f:
-            return json.load(f)
+            cached_models = json.load(f)
+            # Convert string keys to integers (JSON only supports string keys)
+            return {int(k): v for k, v in cached_models.items()}
     
     # Fetch from API
     print("Fetching car models from API...")
@@ -165,16 +168,16 @@ def append_consumption_log(timestamp, consumption_events):
     """Append consumption events to CSV"""
     if not consumption_events:
         return
-    
+
     Path("data").mkdir(exist_ok=True)
     file_exists = os.path.exists(DATA_FILE)
-    
+
     with open(DATA_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(['timestamp', 'car_id', 'car_name', 'model_type', 
+            writer.writerow(['timestamp', 'car_id', 'car_name', 'model_type',
                            'consumption_liters', 'prev_fuel_liters', 'curr_fuel_liters'])
-        
+
         for event in consumption_events:
             writer.writerow([
                 timestamp,
@@ -186,31 +189,76 @@ def append_consumption_log(timestamp, consumption_events):
                 f"{event['curr_fuel']:.2f}"
             ])
 
+def append_all_readings(timestamp, cars, models):
+    """Append ALL car readings to CSV for comprehensive tracking"""
+    Path("data").mkdir(exist_ok=True)
+    file_exists = os.path.exists(ALL_READINGS_FILE)
+
+    with open(ALL_READINGS_FILE, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(['timestamp', 'car_id', 'car_name', 'model_id', 'model_type',
+                           'fuel_percent', 'fuel_liters', 'available', 'max_fuel'])
+
+        for car in cars:
+            car_id = car['id']
+            model_id = car['modelId']
+
+            # Skip cars with unknown models or invalid types
+            if model_id not in models:
+                continue
+            if models[model_id]['type'] not in [1, 2]:
+                continue
+
+            model_info = models[model_id]
+            max_fuel = model_info['maxFuel']
+            fuel_liters = (car['fuel'] / 100.0) * max_fuel
+
+            writer.writerow([
+                timestamp,
+                car_id,
+                model_info['name'],
+                model_id,
+                model_info['type'],
+                car['fuel'],
+                f"{fuel_liters:.2f}",
+                car['available'],
+                max_fuel
+            ])
+
 def main():
     print(f"[{datetime.now()}] Starting monitoring cycle...")
-    
+
     # Get car models (cached after first run)
     models = get_car_models()
-    
+
     # Get current data
     current_cars = get_cars()
     print(f"Retrieved data for {len(current_cars)} cars")
-    
+
+    # Generate timestamp for this reading
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # ALWAYS store all readings - this gives us complete activity tracking
+    append_all_readings(timestamp, current_cars, models)
+    tracked_cars = sum(1 for car in current_cars
+                      if car['modelId'] in models and models[car['modelId']]['type'] in [1, 2])
+    print(f"Stored readings for {tracked_cars} cars to {ALL_READINGS_FILE}")
+
     # Load previous state
     previous_state = load_previous_state()
-    
+
     # Calculate consumption (skip first run when no previous data)
     if previous_state:
         consumption_events = calculate_consumption(previous_state, current_cars, models)
-        
+
         if consumption_events:
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             append_consumption_log(timestamp, consumption_events)
-            
+
             total_consumption = sum(e['consumption'] for e in consumption_events)
             print(f"Recorded {len(consumption_events)} consumption events")
             print(f"Total consumption: {total_consumption:.2f} liters")
-            
+
             # Show breakdown by car model
             model_consumption = {}
             for event in consumption_events:
@@ -219,7 +267,7 @@ def main():
                     model_consumption[name] = {'count': 0, 'liters': 0}
                 model_consumption[name]['count'] += 1
                 model_consumption[name]['liters'] += event['consumption']
-            
+
             print("\nConsumption by model:")
             for name, data in sorted(model_consumption.items()):
                 print(f"  {name}: {data['liters']:.2f}L ({data['count']} events)")
@@ -227,7 +275,7 @@ def main():
             print("No consumption events detected")
     else:
         print("First run - no previous data to compare")
-    
+
     # Save current state for next run
     save_current_state(current_cars, models)
     print("State saved successfully")
