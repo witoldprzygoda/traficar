@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .env
 data/*.png
+data/*.db
+data/*.csv
+data/*.json
